@@ -67,7 +67,7 @@ def register_write_tools(mcp: FastMCP, writer: NoteWriter) -> None:
 
     @mcp.tool()
     def create_folder(path: str) -> dict:
-        """Create a folder in the vault. Automatically creates an _index.md summary document.
+        """Create a folder in the vault. Automatically creates a <folder_name>.md summary document.
 
         Args:
             path: Vault-relative folder path.

@@ -73,7 +73,7 @@ def test_create_note_already_exists(writer, vault):
 def test_create_note_infers_folder_from_existing(writer, vault):
     """When path=None and matching folder exists, note goes there."""
     (vault / "recipes").mkdir()
-    (vault / "recipes" / "_index.md").write_text("# Recipes\n\n## Documents\n")
+    (vault / "recipes" / "recipes.md").write_text("# Recipes\n\n## Documents\n")
     info = writer.create_note(
         None, "Mix and bake.", title="Chocolate Cake",
         description="A recipe", frontmatter={"tags": ["recipes"]}
@@ -82,13 +82,13 @@ def test_create_note_infers_folder_from_existing(writer, vault):
 
 
 def test_create_note_infers_folder_creates_new(writer, vault):
-    """When path=None and no matching folder, creates new folder with _index.md."""
+    """When path=None and no matching folder, creates new folder with <folder_name>.md."""
     info = writer.create_note(
         None, "Some science content.", title="Quantum Notes",
         description="Physics notes", frontmatter={"tags": ["physics"]}
     )
     folder = Path(info.path).parent
-    assert (vault / folder / "_index.md").exists()
+    assert (vault / folder / f"{folder.name}.md").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -172,7 +172,7 @@ def test_create_folder(writer, vault):
 
 def test_create_folder_generates_index(writer, vault):
     writer.create_folder("projects")
-    index = vault / "projects" / "_index.md"
+    index = vault / "projects" / "projects.md"
     assert index.exists()
     raw = index.read_text()
     assert "# Projects" in raw
@@ -180,11 +180,11 @@ def test_create_folder_generates_index(writer, vault):
 
 
 def test_create_folder_no_duplicate_index(writer, vault):
-    """Creating an existing folder must not overwrite its _index.md."""
+    """Creating an existing folder must not overwrite its <folder_name>.md."""
     writer.create_folder("existing")
-    (vault / "existing" / "_index.md").write_text("# Custom\n")
-    writer.create_folder("existing")  # should be no-op on _index
-    assert (vault / "existing" / "_index.md").read_text() == "# Custom\n"
+    (vault / "existing" / "existing.md").write_text("# Custom\n")
+    writer.create_folder("existing")  # should be no-op on index
+    assert (vault / "existing" / "existing.md").read_text() == "# Custom\n"
 
 
 def test_delete_empty_folder(writer, vault):

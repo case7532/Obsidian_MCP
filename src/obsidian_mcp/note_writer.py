@@ -107,8 +107,8 @@ class NoteWriter:
         )
 
     def _update_folder_index(self, folder_abs: Path) -> None:
-        """Add missing notes to folder's _index.md — preserves existing descriptions."""
-        index_path = folder_abs / "_index.md"
+        """Add missing notes to folder's <folder_name>.md — preserves existing descriptions."""
+        index_path = folder_abs / f"{folder_abs.name}.md"
         if not index_path.exists():
             return
         raw = index_path.read_text(encoding="utf-8")
@@ -116,10 +116,10 @@ class NoteWriter:
         # Find which stems are already linked in the index
         linked_stems = {m.group(1).split("|")[0].split("#")[0].strip() for m in _WIKILINK_RE.finditer(raw)}
 
-        # Collect notes not yet in index
+        # Collect notes not yet in index (exclude the folder index file itself)
         missing = [
             p for p in sorted(folder_abs.glob("*.md"))
-            if p.name != "_index.md" and p.stem not in linked_stems
+            if p.name != index_path.name and p.stem not in linked_stems
         ]
         if not missing:
             return
@@ -285,8 +285,8 @@ class NoteWriter:
                 md.write_text(updated, encoding="utf-8")
 
     def _create_folder_index(self, folder_abs: Path, folder_name: str) -> None:
-        """Create _index.md summary document for a new folder."""
-        index_path = folder_abs / "_index.md"
+        """Create <folder_name>.md summary document for a new folder."""
+        index_path = folder_abs / f"{folder_name}.md"
         if index_path.exists():
             return
         title = folder_name.replace("-", " ").replace("_", " ").title()
@@ -305,7 +305,7 @@ class NoteWriter:
         index_path.write_text(content, encoding="utf-8")
 
     def create_folder(self, path: str) -> None:
-        """Create a folder in the vault and generate an _index.md summary."""
+        """Create a folder in the vault and generate a <folder_name>.md summary."""
         abs_path = self._safe_resolve(path)
         is_new = not abs_path.exists()
         try:
