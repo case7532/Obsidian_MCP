@@ -78,3 +78,17 @@ def register_read_tools(mcp: FastMCP, reader: NoteReader) -> None:
             path: Vault-relative path to the .canvas file.
         """
         return reader.read_canvas(path)
+
+    @mcp.tool()
+    def bm25_search(query: str, limit: int = 20) -> list[dict]:
+        """BM25-ranked search across all notes. Faster and more relevant than full-text search.
+
+        Supports multi-word queries. Scores documents by term frequency and inverse document
+        frequency with length normalization. Returns JSON with path, title, score,
+        matched_terms, and per-term excerpts.
+
+        Args:
+            query: Search query (single or multi-word).
+            limit: Maximum number of results (default 20, max 100).
+        """
+        return reader.bm25_search(query, limit=limit)

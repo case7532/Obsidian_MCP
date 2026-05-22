@@ -107,21 +107,41 @@ class NoteWriter:
         )
 
     def _update_folder_index(self, folder_abs: Path) -> None:
-        """Add newly created note to folder's _index.md document list."""
+        """Add missing notes to folder's _index.md — preserves existing descriptions."""
         index_path = folder_abs / "_index.md"
         if not index_path.exists():
             return
         raw = index_path.read_text(encoding="utf-8")
-        notes = [
-            to_vault_relative(self._config.vault_path, p)
-            for p in sorted(folder_abs.glob("*.md"))
-            if p.name != "_index.md"
+
+        # Find which stems are already linked in the index
+        linked_stems = {m.group(1).split("|")[0].split("#")[0].strip() for m in _WIKILINK_RE.finditer(raw)}
+
+        # Collect notes not yet in index
+        missing = [
+            p for p in sorted(folder_abs.glob("*.md"))
+            if p.name != "_index.md" and p.stem not in linked_stems
         ]
-        # Rebuild the Documents section
-        pre, _, _ = raw.partition("## Documents")
-        doc_lines = ["## Documents", ""]
-        doc_lines.extend(f"- [[{Path(n).stem}]] — {Path(n).stem}" for n in notes)
-        index_path.write_text(pre.rstrip("\n") + "\n\n" + "\n".join(doc_lines) + "\n", encoding="utf-8")
+        if not missing:
+            return
+
+        new_entries = "\n".join(f"- [[{p.stem}]] — {p.stem}" for p in missing)
+
+        # Append inside ## Documents section if present, else append at end
+        if "## Documents" in raw:
+            # Insert before the next ## heading or end of file
+            parts = raw.split("## Documents", 1)
+            after = parts[1]
+            next_section = re.search(r"\n##\s", after)
+            if next_section:
+                insert_at = next_section.start()
+                parts[1] = after[:insert_at].rstrip("\n") + "\n" + new_entries + "\n" + after[insert_at:]
+            else:
+                parts[1] = after.rstrip("\n") + "\n" + new_entries + "\n"
+            updated = "## Documents".join(parts)
+        else:
+            updated = raw.rstrip("\n") + "\n\n## Documents\n\n" + new_entries + "\n"
+
+        index_path.write_text(updated, encoding="utf-8")
 
     def create_note(
         self,

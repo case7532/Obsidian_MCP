@@ -201,6 +201,103 @@ class NoteReader:
 
         return sorted(results, key=lambda r: -r.score)
 
+    def bm25_search(self, query: str, limit: int = 20) -> list[dict]:
+        """BM25-ranked full-text search across all notes. Returns JSON-serializable dicts.
+
+        BM25 scores each document using term frequency saturation (k1=1.5) and length
+        normalization (b=0.75). Supports multi-word queries — all terms scored together.
+        Returns top `limit` results with path, title, score, matched_terms, and excerpts
+        (one snippet per matched term, one per page).
+        """
+        import math
+        from collections import defaultdict
+
+        limit = min(limit, 100)
+        terms = [t for t in re.split(r"\W+", query.lower()) if t]
+        if not terms:
+            return []
+
+        # --- Build corpus index ---
+        # doc_id -> (rel_path, title, raw, token_freqs, token_count)
+        corpus: list[tuple[str, str, str, dict[str, int], int]] = []
+
+        for md in self._config.vault_path.rglob("*.md"):
+            if ".obsidian" in md.parts:
+                continue
+            try:
+                raw = md.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            rel = to_vault_relative(self._config.vault_path, md)
+            fm, body = _parse_frontmatter(raw)
+            title = str(fm.get("title") or md.stem)
+            tokens = re.split(r"\W+", raw.lower())
+            freq: dict[str, int] = defaultdict(int)
+            for tok in tokens:
+                if tok:
+                    freq[tok] += 1
+            corpus.append((rel, title, raw, dict(freq), len(tokens)))
+
+        if not corpus:
+            return []
+
+        N = len(corpus)
+        avgdl = sum(c[4] for c in corpus) / N
+
+        # df[term] = number of documents containing term
+        df: dict[str, int] = defaultdict(int)
+        for _, _, _, freq, _ in corpus:
+            for t in terms:
+                if t in freq:
+                    df[t] += 1
+
+        k1, b = 1.5, 0.75
+        results = []
+
+        for rel, title, raw, freq, dl in corpus:
+            score = 0.0
+            for t in terms:
+                if t not in freq:
+                    continue
+                tf = freq[t]
+                idf = math.log((N - df[t] + 0.5) / (df[t] + 0.5) + 1)
+                tf_norm = (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * dl / avgdl))
+                score += idf * tf_norm
+
+            if score <= 0:
+                continue
+
+            # Build one excerpt per term (show context around first occurrence)
+            raw_lower = raw.lower()
+            excerpts: list[dict] = []
+            seen_positions: set[int] = set()
+            for t in terms:
+                idx = raw_lower.find(t)
+                if idx == -1:
+                    continue
+                # Deduplicate overlapping snippets
+                bucket = idx // 100
+                if bucket in seen_positions:
+                    continue
+                seen_positions.add(bucket)
+                start = max(0, idx - 60)
+                end = min(len(raw), idx + 80)
+                excerpts.append({
+                    "term": t,
+                    "snippet": ("…" if start > 0 else "") + raw[start:end].strip() + ("…" if end < len(raw) else ""),
+                })
+
+            results.append({
+                "path": rel,
+                "title": title,
+                "score": round(score, 4),
+                "matched_terms": [t for t in terms if t in freq],
+                "excerpts": excerpts,
+            })
+
+        results.sort(key=lambda r: -r["score"])
+        return results[:limit]
+
     def get_metadata(self, path: str) -> NoteMetadata:
         """Get metadata for a note."""
         abs_path = self._safe_resolve(path)
