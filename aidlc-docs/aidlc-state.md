@@ -11,10 +11,10 @@
 
 ## Project Information
 - **Project Name**: MCP for Obsidian
-- **Project Type**: Greenfield
+- **Project Type**: Brownfield (active development)
 - **Start Date**: 2026-05-19T15:23:10+07:00
-- **Current Stage**: Enhancement — Document Format + Smart Placement + Folder Index ✅
-- **Next Stage**: Operations (placeholder)
+- **Current Stage**: Reverse Engineering ✅ — 2026-05-22T13:47:09+07:00
+- **Next Stage**: Requirements Analysis (nếu có features mới) hoặc Operations
 
 ## Workspace State
 - **Existing Code**: No
@@ -28,7 +28,7 @@
 ## Stage Progress
 ### INCEPTION PHASE
 - [x] Workspace Detection - Greenfield project detected
-- [x] Reverse Engineering - SKIPPED (Greenfield)
+- [x] Reverse Engineering - COMPLETED (re-run 2026-05-22) — artifacts at aidlc-docs/inception/reverse-engineering/
 - [x] Requirements Analysis - COMPLETED
 - [x] User Stories - SKIPPED (developer tool, no user personas)
 - [x] Workflow Planning - COMPLETED

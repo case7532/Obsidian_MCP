@@ -203,3 +203,19 @@
 **Context**: Documentation reorganization per new format rules
 
 ---
+
+## Reverse Engineering Re-run Request
+**Timestamp**: 2026-05-22T13:47:09+07:00
+**User Input**: "sử dụng AI-DLC: review lại dự án"
+**AI Response**: "Starting Reverse Engineering phase to analyze current codebase state including v0.1.1 changes and dev branch additions (smart folder index update + BM25 search)."
+**Context**: User requested full AI-DLC review of existing project. Brownfield project with updated codebase — triggering Reverse Engineering.
+
+---
+
+## Reverse Engineering — Completed
+**Timestamp**: 2026-05-22T13:47:09+07:00
+**User Input**: (automated completion)
+**AI Response**: "Reverse Engineering completed. Generated 9 artifacts in aidlc-docs/inception/reverse-engineering/. Key findings: 19 MCP tools, 85 unit tests passing, 2 runtime deps, BM25 search on dev branch not yet tested."
+**Context**: All RE artifacts generated successfully. Awaiting user approval to proceed.
+
+---
