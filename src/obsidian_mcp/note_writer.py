@@ -54,7 +54,66 @@ def _build_document_template(title: str, description: str, content: str, links: 
     return "\n".join(lines)
 
 
+def _extract_summary(content: str, max_len: int = 120) -> str:
+    """Extract a one-line summary from note content.
+
+    Priority:
+    1. Blockquote description line (> ...)
+    2. First non-empty, non-heading, non-frontmatter text line
+    Falls back to empty string.
+    """
+    in_frontmatter = False
+    frontmatter_done = False
+    lines = content.splitlines()
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if i == 0 and stripped == "---":
+            in_frontmatter = True
+            continue
+        if in_frontmatter:
+            if stripped == "---":
+                in_frontmatter = False
+                frontmatter_done = True
+            continue
+        if not stripped:
+            continue
+        # Blockquote → description line
+        if stripped.startswith(">"):
+            summary = stripped.lstrip(">").strip()
+            return summary[:max_len]
+        # Skip headings and special markers
+        if stripped.startswith("#") or stripped.startswith("<!--"):
+            continue
+        return stripped[:max_len]
+    return ""
+
+
 def _infer_folder(vault_path: Path, title: str, tags: list[str], content: str) -> str:
+    """Infer best folder from existing vault structure using title/tags/content keywords."""
+    # Collect existing top-level folders (exclude hidden)
+    folders = [
+        p.name for p in vault_path.iterdir()
+        if p.is_dir() and not p.name.startswith(".") and p.name != "_index"
+    ]
+    if not folders:
+        if tags:
+            return tags[0].replace("/", "-")
+        return title.split()[0].lower() if title.split() else "notes"
+
+    text = " ".join([title.lower()] + tags + [content[:200].lower()])
+    scores: dict[str, int] = {}
+    for folder in folders:
+        key = folder.lower().replace("-", " ").replace("_", " ")
+        scores[folder] = sum(1 for word in key.split() if word in text)
+
+    best = max(scores, key=lambda f: scores[f])
+    if scores[best] == 0:
+        candidate = tags[0].replace("/", "-") if tags else title.split()[0].lower()
+        return candidate if candidate else "notes"
+    return best
+
+
+
     """Infer best folder from existing vault structure using title/tags/content keywords."""
     # Collect existing top-level folders (exclude hidden)
     folders = [
@@ -143,6 +202,50 @@ class NoteWriter:
 
         index_path.write_text(updated, encoding="utf-8")
 
+    def _sync_folder_index_entry(self, note_abs: Path) -> None:
+        """After editing a note, update (or add) its entry in <folder_name>.md.
+
+        - If entry exists: replace the description with a fresh summary.
+        - If entry missing: add it (same as _update_folder_index).
+        """
+        folder_abs = note_abs.parent
+        index_path = folder_abs / f"{folder_abs.name}.md"
+        if not index_path.exists():
+            return
+
+        try:
+            note_raw = note_abs.read_text(encoding="utf-8")
+            raw = index_path.read_text(encoding="utf-8")
+        except OSError:
+            return
+
+        stem = note_abs.stem
+        summary = _extract_summary(note_raw) or stem
+        new_entry = f"- [[{stem}]] — {summary}"
+
+        # If entry already exists: replace the line containing [[stem]]
+        entry_re = re.compile(r"^- \[\[" + re.escape(stem) + r"\]\].*$", re.MULTILINE)
+        if entry_re.search(raw):
+            updated = entry_re.sub(new_entry, raw)
+        else:
+            # Entry missing — append into ## Documents section
+            if "## Documents" in raw:
+                parts = raw.split("## Documents", 1)
+                after = parts[1]
+                next_section = re.search(r"\n##\s", after)
+                if next_section:
+                    insert_at = next_section.start()
+                    parts[1] = after[:insert_at].rstrip("\n") + "\n" + new_entry + "\n" + after[insert_at:]
+                else:
+                    parts[1] = after.rstrip("\n") + "\n" + new_entry + "\n"
+                updated = "## Documents".join(parts)
+            else:
+                updated = raw.rstrip("\n") + "\n\n## Documents\n\n" + new_entry + "\n"
+
+        if updated != raw:
+            index_path.write_text(updated, encoding="utf-8")
+
+
     def create_note(
         self,
         path: str | None,
@@ -219,6 +322,7 @@ class NoteWriter:
             abs_path.write_text(body, encoding="utf-8")
         except OSError as e:
             raise ObsidianMCPError("Cannot write file") from e
+        self._sync_folder_index_entry(abs_path)
         return self._note_info(abs_path)
 
     def delete_note(self, path: str) -> None:

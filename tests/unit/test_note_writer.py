@@ -114,6 +114,42 @@ def test_update_note_not_found(writer):
 
 
 # ---------------------------------------------------------------------------
+# update_note — folder index sync
+# ---------------------------------------------------------------------------
+
+def test_update_note_refreshes_existing_entry_in_folder_index(writer, vault):
+    """Editing a note updates its description in <folder>.md."""
+    (vault / "docs").mkdir()
+    (vault / "docs" / "docs.md").write_text(
+        "# Docs\n\n## Documents\n\n- [[guide]] — old description\n"
+    )
+    (vault / "docs" / "guide.md").write_text("old content")
+    writer.update_note("docs/guide.md", "# Guide\n\n> New summary of the guide\n\nBody text.")
+    index = (vault / "docs" / "docs.md").read_text()
+    assert "New summary of the guide" in index
+    assert "old description" not in index
+
+
+def test_update_note_adds_missing_entry_to_folder_index(writer, vault):
+    """Editing a note that has no entry in <folder>.md adds it."""
+    (vault / "docs").mkdir()
+    (vault / "docs" / "docs.md").write_text("# Docs\n\n## Documents\n\n")
+    (vault / "docs" / "guide.md").write_text("old")
+    writer.update_note("docs/guide.md", "# Guide\n\n> Auto-added summary\n")
+    index = (vault / "docs" / "docs.md").read_text()
+    assert "[[guide]]" in index
+    assert "Auto-added summary" in index
+
+
+def test_update_note_no_folder_index_is_noop(writer, vault):
+    """Editing a note whose folder has no index file does nothing extra."""
+    (vault / "loose").mkdir()
+    (vault / "loose" / "note.md").write_text("old")
+    writer.update_note("loose/note.md", "new content")  # should not raise
+    assert (vault / "loose" / "note.md").read_text() == "new content"
+
+
+# ---------------------------------------------------------------------------
 # delete_note
 # ---------------------------------------------------------------------------
 
