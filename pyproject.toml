@@ -1,0 +1,31 @@
+[project]
+name = "obsidian-mcp"
+version = "0.1.1"
+description = "MCP server for Obsidian vault — read/write notes via Model Context Protocol"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0.0",
+    "PyYAML>=6.0.1",
+]
+
+[project.scripts]
+obsidian-mcp = "obsidian_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/obsidian_mcp"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "hypothesis>=6.100.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--tb=short"
