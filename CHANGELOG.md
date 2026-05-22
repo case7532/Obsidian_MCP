@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2] - 2026-05-22
+
+### Added
+- `bm25_search(query, limit)` tool — BM25-ranked search (k1=1.5, b=0.75), multi-word queries, returns JSON with `path`, `title`, `score`, `matched_terms`, and per-term `excerpts`. Faster and more relevant than `search_notes` for multi-keyword queries.
+
+### Changed
+- Folder introduction file renamed from `_index.md` to `<folder_name>.md` (e.g. `recipes/recipes.md`). Applies to both `create_folder` and `_update_folder_index`.
+- `create_note`: folder index update now checks for existing links before appending — preserves manually-written descriptions, only adds missing entries.
+- `update_note`: after writing, automatically syncs the note's entry in `<folder_name>.md`:
+  - If entry exists → updates the description with a fresh summary extracted from the new content.
+  - If entry missing → adds a new entry.
+  - If no folder index exists → no-op.
+  - Summary extraction priority: blockquote `>` line → first non-heading text line (max 120 chars).
+
+### Tests
+- Added 3 new tests for `update_note` folder index sync behavior (88 total, all passing).
+
 ## [0.1.1] - 2026-05-22
 
 ### Added
